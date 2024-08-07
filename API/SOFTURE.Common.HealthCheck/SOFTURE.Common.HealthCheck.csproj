@@ -1,0 +1,41 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFramework>net8.0</TargetFramework>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.1" />
+        <PackageReference Include="SOFTURE.Results" Version="0.0.7" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <AssemblyName>SOFTURE.Common.HealthCheck</AssemblyName>
+        <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <Title>$(AssemblyName)</Title>
+        <Authors>SOFTURE</Authors>
+        <Copyright>Copyright (c) 2024 $(Authors)</Copyright>
+        <Description>SOFTURE - HealtCheck</Description>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <IncludeSymbols>true</IncludeSymbols>
+        <PackageId>$(AssemblyName)</PackageId>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageProjectUrl>https://github.com/SOFTURE/API</PackageProjectUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageReleaseNotes>See $(PackageProjectUrl)/blob/master/CHANGELOG.md for release notes.</PackageReleaseNotes>
+        <PackageTags>SOFTURE</PackageTags>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+    
+</Project>
