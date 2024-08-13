@@ -4,6 +4,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.HealthCheck"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.Correlation", "SOFTURE.Common.Correlation\SOFTURE.Common.Correlation.csproj", "{8D236EE2-807F-4491-ADE3-B414A39AE8D8}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.MessageBroker.Rabbit", "SOFTURE.MessageBroker.Rabbit\SOFTURE.MessageBroker.Rabbit.csproj", "{D64C8209-20BA-4294-89B3-A67BB3B9F64C}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -18,5 +20,9 @@ Global
 		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{D64C8209-20BA-4294-89B3-A67BB3B9F64C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D64C8209-20BA-4294-89B3-A67BB3B9F64C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D64C8209-20BA-4294-89B3-A67BB3B9F64C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D64C8209-20BA-4294-89B3-A67BB3B9F64C}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
