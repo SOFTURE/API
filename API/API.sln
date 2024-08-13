@@ -2,6 +2,8 @@
 Microsoft Visual Studio Solution File, Format Version 12.00
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.HealthCheck", "SOFTURE.Common.HealthCheck\SOFTURE.Common.HealthCheck.csproj", "{5D6F7130-2C65-4BB3-A81C-5975E9CEEE9A}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.Correlation", "SOFTURE.Common.Correlation\SOFTURE.Common.Correlation.csproj", "{8D236EE2-807F-4491-ADE3-B414A39AE8D8}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -12,5 +14,9 @@ Global
 		{5D6F7130-2C65-4BB3-A81C-5975E9CEEE9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5D6F7130-2C65-4BB3-A81C-5975E9CEEE9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5D6F7130-2C65-4BB3-A81C-5975E9CEEE9A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8D236EE2-807F-4491-ADE3-B414A39AE8D8}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
