@@ -1,0 +1,56 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+    <PropertyGroup>
+        <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <Nullable>enable</Nullable>
+    </PropertyGroup>
+
+    <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
+        <PackageReference Include="Serilog" Version="4.0.1"/>
+        <PackageReference Include="Serilog.AspNetCore" Version="8.0.0"/>
+        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1"/>
+        <PackageReference Include="Serilog.Sinks.Seq" Version="5.1.0"/>
+        <PackageReference Include="SOFTURE.Common.HealthCheck" Version="0.0.5" />
+        <PackageReference Include="SOFTURE.Results" Version="0.0.9" />
+        <PackageReference Include="SOFTURE.Settings" Version="0.0.9" />
+    </ItemGroup>
+
+    <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
+        <PackageReference Include="Serilog" Version="4.0.1"/>
+        <PackageReference Include="Serilog.AspNetCore" Version="6.0.0"/>
+        <PackageReference Include="Serilog.Sinks.Console" Version="5.0.1"/>
+        <PackageReference Include="Serilog.Sinks.Seq" Version="5.1.0"/>
+        <PackageReference Include="SOFTURE.Common.HealthCheck" Version="0.0.5" />
+        <PackageReference Include="SOFTURE.Results" Version="0.0.9" />
+        <PackageReference Include="SOFTURE.Settings" Version="0.0.9" />
+    </ItemGroup>
+
+    <PropertyGroup>
+        <AssemblyName>SOFTURE.Common.Logging</AssemblyName>
+        <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
+        <ImplicitUsings>enable</ImplicitUsings>
+        <LangVersion>latest</LangVersion>
+        <Title>$(AssemblyName)</Title>
+        <Authors>SOFTURE</Authors>
+        <Copyright>Copyright (c) 2024 $(Authors)</Copyright>
+        <Description>SOFTURE - Logging</Description>
+        <EmbedUntrackedSources>true</EmbedUntrackedSources>
+        <IncludeSymbols>true</IncludeSymbols>
+        <PackageId>$(AssemblyName)</PackageId>
+        <PackageLicenseFile>LICENSE</PackageLicenseFile>
+        <PackageProjectUrl>https://github.com/SOFTURE/API</PackageProjectUrl>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageReleaseNotes>See $(PackageProjectUrl)/blob/master/CHANGELOG.md for release notes.</PackageReleaseNotes>
+        <PackageTags>SOFTURE</PackageTags>
+        <PublishRepositoryUrl>true</PublishRepositoryUrl>
+        <RepositoryType>Git</RepositoryType>
+        <RepositoryUrl>$(PackageProjectUrl)</RepositoryUrl>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="..\..\README.md" Pack="true" PackagePath="\"/>
+        <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
+    </ItemGroup>
+
+</Project>
