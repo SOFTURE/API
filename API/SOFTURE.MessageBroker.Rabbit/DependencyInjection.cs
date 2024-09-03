@@ -2,6 +2,7 @@
 using MassTransit;
 using Microsoft.Extensions.DependencyInjection;
 using SOFTURE.Common.HealthCheck;
+using SOFTURE.Contract.Common.Messaging;
 using SOFTURE.MessageBroker.Rabbit.Filters;
 using SOFTURE.MessageBroker.Rabbit.HealthChecks;
 using SOFTURE.MessageBroker.Rabbit.Settings;
@@ -39,14 +40,22 @@ namespace SOFTURE.MessageBroker.Rabbit
             return services;
         }
 
-        public static IServiceCollection AddCommonConsumers<TSettings>(this IServiceCollection services, Assembly assembly)
+        public static IServiceCollection AddCommonConsumers<TSettings>(
+            this IServiceCollection services,
+            Assembly assembly,
+            int retryCount = 0)
             where TSettings : IRabbitSettings
         {
-            var consumerTypes = GetConsumers(assembly);
+            var consumerTypes = GetConsumers<IMessage>(assembly);
+            var bulkConsumerTypes = GetConsumers<IBulkMessage>(assembly);
+
+            var allConsumerTypes = consumerTypes
+                .Concat(bulkConsumerTypes)
+                .ToList();
 
             services.AddMassTransit(config =>
             {
-                foreach (var type in consumerTypes)
+                foreach (var type in allConsumerTypes)
                 {
                     config.AddConsumer(type);
                 }
@@ -54,7 +63,7 @@ namespace SOFTURE.MessageBroker.Rabbit
                 config.UsingRabbitMq((ctx, cfg) =>
                 {
                     var consumerSettings = ctx.GetRequiredService<TSettings>().Rabbit;
-                    
+
                     cfg.UseInMemoryOutbox(ctx);
 
                     cfg.UseConsumeFilter(typeof(ContextConsumeLoggingFilter<>), ctx);
@@ -75,6 +84,19 @@ namespace SOFTURE.MessageBroker.Rabbit
                         foreach (var type in consumerTypes)
                         {
                             c.ConfigureConsumer(ctx, type);
+                            c.PrefetchCount = 1;
+
+                            if (retryCount != 0)
+                                c.UseMessageRetry(r => r.Immediate(retryCount));
+                        }
+
+                        foreach (var type in bulkConsumerTypes)
+                        {
+                            c.ConfigureConsumer(ctx, type);
+                            c.PrefetchCount = 50;
+
+                            if (retryCount != 0)
+                                c.UseMessageRetry(r => r.Immediate(retryCount));
                         }
                     });
                 });
@@ -85,12 +107,14 @@ namespace SOFTURE.MessageBroker.Rabbit
             return services;
         }
 
-        private static List<Type> GetConsumers(Assembly assembly)
+        private static List<Type> GetConsumers<T>(Assembly assembly) where T : class
         {
             var consumerTypes = assembly.GetTypes()
                 .Where(t =>
                     t.GetInterfaces().Any(i =>
-                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IConsumer<>)) &&
+                        i.IsGenericType &&
+                        i.GetGenericTypeDefinition() == typeof(IConsumer<>) &&
+                        typeof(T).IsAssignableFrom(i.GetGenericArguments()[0])) &&
                     !t.IsAbstract)
                 .ToList();
 
