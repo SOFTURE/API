@@ -7,24 +7,26 @@
     </PropertyGroup>
     
     <ItemGroup Condition=" '$(TargetFramework)' == 'net8.0' ">
-        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="8.0.0" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
         <PackageReference Include="SOFTURE.Results" Version="0.0.10" />
+        <PackageReference Include="SOFTURE.Settings" Version="0.0.10" />
     </ItemGroup>
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net6.0' ">
-        <PackageReference Include="AspNetCore.HealthChecks.UI.Client" Version="6.0.2" />
+        <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="6.0.0" />
         <PackageReference Include="SOFTURE.Results" Version="0.0.10" />
+        <PackageReference Include="SOFTURE.Settings" Version="0.0.10" />
     </ItemGroup>
-    
+
     <PropertyGroup>
-        <AssemblyName>SOFTURE.Common.HealthCheck</AssemblyName>
+        <AssemblyName>SOFTURE.Common.Authentication</AssemblyName>
         <AssemblyTitle>$(AssemblyName)</AssemblyTitle>
         <ImplicitUsings>enable</ImplicitUsings>
         <LangVersion>latest</LangVersion>
         <Title>$(AssemblyName)</Title>
         <Authors>SOFTURE</Authors>
         <Copyright>Copyright (c) 2024 $(Authors)</Copyright>
-        <Description>SOFTURE - HealtCheck</Description>
+        <Description>SOFTURE - Authentication</Description>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <IncludeSymbols>true</IncludeSymbols>
         <PackageId>$(AssemblyName)</PackageId>
