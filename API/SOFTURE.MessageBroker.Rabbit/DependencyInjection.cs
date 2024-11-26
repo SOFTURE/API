@@ -26,6 +26,7 @@ namespace SOFTURE.MessageBroker.Rabbit
 
                     cfg.Host(publisherSettings.Url, h =>
                     {
+# if NET6_0
                         h.ConfigureBatchPublish(bcfg =>
                         {
                             bcfg.Enabled = true;
@@ -33,6 +34,7 @@ namespace SOFTURE.MessageBroker.Rabbit
                             bcfg.SizeLimit = 10000;
                             bcfg.Timeout = TimeSpan.FromMilliseconds(30);
                         });
+# endif
                     });
                 });
             });
@@ -70,6 +72,7 @@ namespace SOFTURE.MessageBroker.Rabbit
 
                     cfg.Host(consumerSettings.Url, h =>
                     {
+# if NET6_0
                         h.ConfigureBatchPublish(bcfg =>
                         {
                             bcfg.Enabled = true;
@@ -77,6 +80,7 @@ namespace SOFTURE.MessageBroker.Rabbit
                             bcfg.SizeLimit = 10000;
                             bcfg.Timeout = TimeSpan.FromMilliseconds(30);
                         });
+#endif
                     });
 
                     cfg.ReceiveEndpoint(consumerSettings.Name, c =>

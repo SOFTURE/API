@@ -2,7 +2,7 @@ namespace SOFTURE.Common.Observability.Settings;
 
 public sealed class ObservabilitySettings
 {
-#if NET8_0
+#if NET8_0_OR_GREATER
     public required string Url { get; init; }
 #endif
 

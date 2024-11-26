@@ -2,7 +2,7 @@ namespace SOFTURE.MessageBroker.Rabbit.Settings;
 
 public sealed class RabbitSettings
 {
-#if NET8_0
+#if NET8_0_OR_GREATER
     public required string Name { get; init; }
     public required string Url { get; init; }
 #endif

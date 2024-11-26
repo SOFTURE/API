@@ -2,7 +2,7 @@ namespace SOFTURE.Common.Logging.Settings;
 
 public sealed class SeqSettings
 {
-#if NET8_0
+#if NET8_0_OR_GREATER
     public required string Url { get; init; }
     public required string ApiKey { get; init; }
 #endif
