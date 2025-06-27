@@ -46,7 +46,8 @@ namespace SOFTURE.MessageBroker.Rabbit
             this IServiceCollection services,
             Assembly assembly,
             int retryCount = 0,
-            int prefetchCount = 50)
+            int prefetchCount = 50,
+            bool exponentialRetry = false)
             where TSettings : IRabbitSettings
         {
             var consumerTypes = GetConsumers<IMessage>(assembly);
@@ -100,8 +101,22 @@ namespace SOFTURE.MessageBroker.Rabbit
                             c.ConfigureConsumer(ctx, type);
                             c.PrefetchCount = prefetchCount;
 
-                            if (retryCount != 0)
-                                c.UseMessageRetry(r => r.Immediate(retryCount));
+                            switch (exponentialRetry)
+                            {
+                                case false when retryCount != 0:
+                                    c.UseMessageRetry(r => r.Immediate(retryCount));
+                                    break;
+                                case true when retryCount != 0:
+                                    c.UseMessageRetry(r =>
+                                    {
+                                        r.Exponential(
+                                            retryLimit: retryCount,
+                                            minInterval: TimeSpan.FromSeconds(1),
+                                            maxInterval: TimeSpan.FromMinutes(10),
+                                            intervalDelta: TimeSpan.FromSeconds(1));
+                                    });
+                                    break;
+                            }
                         }
                     });
                 });
