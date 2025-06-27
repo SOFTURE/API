@@ -45,7 +45,8 @@ namespace SOFTURE.MessageBroker.Rabbit
         public static IServiceCollection AddCommonConsumers<TSettings>(
             this IServiceCollection services,
             Assembly assembly,
-            int retryCount = 0)
+            int retryCount = 0,
+            int prefetchCount = 50)
             where TSettings : IRabbitSettings
         {
             var consumerTypes = GetConsumers<IMessage>(assembly);
@@ -97,7 +98,7 @@ namespace SOFTURE.MessageBroker.Rabbit
                         foreach (var type in bulkConsumerTypes)
                         {
                             c.ConfigureConsumer(ctx, type);
-                            c.PrefetchCount = 50;
+                            c.PrefetchCount = prefetchCount;
 
                             if (retryCount != 0)
                                 c.UseMessageRetry(r => r.Immediate(retryCount));
