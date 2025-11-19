@@ -4,9 +4,9 @@ using SOFTURE.Language.Common;
 
 namespace SOFTURE.Common.StronglyTypedIdentifiers.API.Extensions;
 
-internal static class JsonExtensions
+public static class JsonExtensions
 {
-    internal static void RegisterStronglyTypedIdConverters<TLanguageAssemblyMarker>(this JsonSerializerOptions options)
+    public static void RegisterStronglyTypedIdConverters<TLanguageAssemblyMarker>(this JsonSerializerOptions options)
         where TLanguageAssemblyMarker : IAssemblyMarker
     {
         var identifiersAssembly = typeof(TLanguageAssemblyMarker).Assembly;

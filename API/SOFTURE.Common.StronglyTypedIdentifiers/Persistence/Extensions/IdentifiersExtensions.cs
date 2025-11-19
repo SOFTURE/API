@@ -2,13 +2,13 @@ using System.Reflection;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
-using SOFTURE.Common.StronglyTypedIdentifiers.Persistance.Exceptions;
+using SOFTURE.Common.StronglyTypedIdentifiers.Persistence.Exceptions;
 using SOFTURE.Domain.Interfaces;
 using SOFTURE.Language.Common;
 
-namespace SOFTURE.Common.StronglyTypedIdentifiers.Persistance.Extensions;
+namespace SOFTURE.Common.StronglyTypedIdentifiers.Persistence.Extensions;
 
-internal static class IdentifiersExtensions
+public static class IdentifiersExtensions
 {
     public static void ConfigureStronglyIdentifiers(this ModelBuilder modelBuilder)
     {

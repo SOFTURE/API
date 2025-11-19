@@ -4,11 +4,11 @@ using SOFTURE.Language.Common;
 
 namespace SOFTURE.Common.StronglyTypedIdentifiers.API.Extensions;
 
-internal static class ParserExtensions
+public static class ParserExtensions
 {
     private const string ValueParserForMethodName = "ValueParserFor";
     
-    internal static void RegisterIdentifierParsers<TLanguageAssemblyMarker>(this Config config)
+    public static void RegisterIdentifierParsers<TLanguageAssemblyMarker>(this Config config)
         where TLanguageAssemblyMarker : IAssemblyMarker
     {
         var identifiersAssembly = typeof(TLanguageAssemblyMarker).Assembly;
