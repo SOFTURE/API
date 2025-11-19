@@ -16,6 +16,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.Resilience",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.CQRS", "SOFTURE.Common.CQRS\SOFTURE.Common.CQRS.csproj", "{1AC78C07-8CFE-4F97-9111-427F8F074797}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SOFTURE.Common.StronglyTypedIdentifiers", "SOFTURE.Common.StronglyTypedIdentifiers\SOFTURE.Common.StronglyTypedIdentifiers.csproj", "{99307AA9-5A10-4A8E-8DC3-13ACCA197B31}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -54,5 +56,9 @@ Global
 		{1AC78C07-8CFE-4F97-9111-427F8F074797}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1AC78C07-8CFE-4F97-9111-427F8F074797}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1AC78C07-8CFE-4F97-9111-427F8F074797}.Release|Any CPU.Build.0 = Release|Any CPU
+		{99307AA9-5A10-4A8E-8DC3-13ACCA197B31}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{99307AA9-5A10-4A8E-8DC3-13ACCA197B31}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{99307AA9-5A10-4A8E-8DC3-13ACCA197B31}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{99307AA9-5A10-4A8E-8DC3-13ACCA197B31}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
