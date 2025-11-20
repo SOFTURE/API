@@ -1,4 +1,5 @@
 using FastEndpoints;
+using Microsoft.Extensions.Primitives;
 using SOFTURE.Common.StronglyTypedIdentifiers.API.Parsers;
 using SOFTURE.Language.Common;
 
@@ -34,7 +35,7 @@ public static class ParserExtensions
     private static void RegisterParser(this Config config, Type identifierType, string parserMethodName)
     {
         var method = typeof(IdentifierParsers).GetMethod(parserMethodName)?.MakeGenericMethod(identifierType);
-        var delegateType = typeof(Func<,>).MakeGenericType(typeof(object), typeof(ParseResult));
+        var delegateType = typeof(Func<,>).MakeGenericType(typeof(StringValues), typeof(ParseResult));
         var parserDelegate = Delegate.CreateDelegate(delegateType, method!);
 
         var bindingMethod = config.Binding.GetType().GetMethod(ValueParserForMethodName, [delegateType])
