@@ -9,7 +9,7 @@ public static class IdentifierParsers
     public static ParseResult GuidParser<TIdentifier>(StringValues input)
         where TIdentifier : IIdentifier
     {
-        var success = Guid.TryParse(input?.ToString(), out var result);
+        var success = Guid.TryParse(input, out var result);
         
         var identifier = (TIdentifier)Activator.CreateInstance(typeof(TIdentifier), result)!;
         
@@ -19,7 +19,7 @@ public static class IdentifierParsers
     public static ParseResult NumberParser<TIdentifier>(StringValues input)
         where TIdentifier : IIdentifier
     {
-        var success = int.TryParse(input?.ToString(), out var result);
+        var success = int.TryParse(input, out var result);
         
         var identifier = (TIdentifier)Activator.CreateInstance(typeof(TIdentifier), result)!;
         
