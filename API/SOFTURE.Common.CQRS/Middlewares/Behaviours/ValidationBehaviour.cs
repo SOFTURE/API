@@ -9,10 +9,7 @@ namespace SOFTURE.Common.CQRS.Middlewares.Behaviours
         : IPipelineBehavior<TRequest, Result>
         where TRequest : IRequest<Result>
     {
-        public async Task<Result> Handle(
-            TRequest request, 
-            RequestHandlerDelegate<Result> next, 
-            CancellationToken cancellationToken)
+        public async Task<Result> Handle(TRequest request, RequestHandlerDelegate<Result> next, CancellationToken cancellationToken)
         {
             if (!validators.Any()) return await next();
             
