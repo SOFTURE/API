@@ -1,0 +1,31 @@
+name: SOFTURE COMMON WEB - RELEASE NEW VERSION TO NUGET.ORG
+
+on:
+  release:
+    types: [released]
+
+jobs:
+  publishing:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: ⚙️ Install dotnet
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: |
+          6.0.x
+          8.0.x
+          9.0.x
+          10.0.x
+
+    - name: 🔗 Restore dependencies
+      run: dotnet restore ./API
+
+    - name: 📂 Create new nuget package
+      run: dotnet pack --no-restore -c Release -o ./artifacts /p:PackageVersion=${{ github.ref_name }} /p:Version=${{ github.ref_name }} ./API/SOFTURE.Common.Web/SOFTURE.Common.Web.csproj
+      continue-on-error: false
+
+    - name: 🚀 Push new nuget package
+      run: dotnet nuget push ./artifacts/SOFTURE.Common.Web.${{ github.ref_name }}.nupkg -k ${{ secrets.NUGET_API_KEY }} -s https://api.nuget.org/v3/index.json

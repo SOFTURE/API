@@ -18,6 +18,7 @@ A collection of reusable .NET libraries providing common infrastructure for buil
 | [SOFTURE.Common.Observability](https://www.nuget.org/packages/SOFTURE.Common.Observability) | OpenTelemetry tracing and metrics (Prometheus, OTLP) |
 | [SOFTURE.Common.Resilience](https://www.nuget.org/packages/SOFTURE.Common.Resilience) | HTTP resilience policies — retry, circuit breaker, hedging, fallback |
 | [SOFTURE.Common.StronglyTypedIdentifiers](https://www.nuget.org/packages/SOFTURE.Common.StronglyTypedIdentifiers) | Strongly-typed ID abstractions with EF Core and FastEndpoints support |
+| [SOFTURE.Common.Web](https://www.nuget.org/packages/SOFTURE.Common.Web) | Web application bootstrap helpers — culture enforcement and data protection keys persistence |
 | [SOFTURE.MessageBroker.Rabbit](https://www.nuget.org/packages/SOFTURE.MessageBroker.Rabbit) | RabbitMQ message publishing and consuming via MassTransit |
 
 ## Getting Started
@@ -39,6 +40,7 @@ dotnet add package SOFTURE.Common.Logging
 dotnet add package SOFTURE.Common.Observability
 dotnet add package SOFTURE.Common.Resilience
 dotnet add package SOFTURE.Common.StronglyTypedIdentifiers
+dotnet add package SOFTURE.Common.Web
 dotnet add package SOFTURE.MessageBroker.Rabbit
 ```
 
@@ -182,6 +184,38 @@ jsonOptions.RegisterStronglyTypedIdConverters<LanguageAssemblyMarker>();
 ```
 
 Supports `Guid`, `int`, and `long` identifier value types.
+
+### Web
+
+Bootstrap helpers for ASP.NET Core applications — globally enforces a culture and persists Data Protection keys to disk.
+
+**Culture enforcement:**
+
+```csharp
+services.AddCommonCulture(new CultureInfo("pl-PL"));
+
+// In the pipeline (web APIs only — applies the enforced culture to every request):
+app.UseRequestLocalization();
+```
+
+Sets `CultureInfo.DefaultThreadCurrentCulture` / `DefaultThreadCurrentUICulture` and restricts `RequestLocalizationOptions` to the provided culture as the single supported one — requests with `Accept-Language` mismatches fall back to the enforced culture.
+
+**Data Protection keys persistence:**
+
+```csharp
+services.AddCommonDataProtection("/tmp/dataprotection-keys");
+```
+
+Persists the ASP.NET Core Data Protection key ring to the given filesystem path — required for containerized deployments where keys must survive restarts and be shared across instances.
+
+**Request context logging middleware:**
+
+```csharp
+// In the pipeline:
+app.UseCommonRequestContextLogging();
+```
+
+Reads the `X-Correlation-ID` header (or generates one), stores it in `ICorrelationProvider`, and enriches Serilog `LogContext` with a `CorrelationId` property for the duration of the request. Requires `SOFTURE.Common.Correlation` (transitive) and Serilog for log enrichment.
 
 ## Supported Frameworks
 
