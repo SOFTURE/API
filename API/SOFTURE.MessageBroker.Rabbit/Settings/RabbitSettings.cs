@@ -11,4 +11,6 @@ public sealed class RabbitSettings
     public string Name { get; init; } = null!;
     public string Url { get; init; } = null!;
 #endif
+
+    public RabbitConsumerSettings Consumers { get; init; } = new();
 }

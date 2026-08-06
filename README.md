@@ -156,6 +156,44 @@ services.AddCommonConsumers<AppSettings>(typeof(Program).Assembly, options =>
 Your settings class must implement `IRabbitSettings` and provide:
 - `Url` — RabbitMQ connection URL
 - `Name` — queue name (consumers only)
+- `Consumers` — optional endpoint tuning, see below
+
+#### Configuring endpoints from `appsettings.json`
+
+Prefetch, concurrency, retry and the kill switch are tuning values that belong in configuration rather than in code. `RabbitSettings.Consumers` binds them, and `ApplyFrom` transfers them onto the endpoint options:
+
+```jsonc
+"Rabbit": {
+  "Name": "App.Worker",
+  "Url": "amqp://guest:guest@localhost:5672",
+  "Consumers": {
+    "PrefetchCount": 64,
+    "ConcurrentMessageLimit": 24,
+    "Retry": { "Count": 5, "IsExponential": true, "MinIntervalSeconds": 1, "MaxIntervalSeconds": 120 },
+    "Groups": {
+      "AI": {
+        "PrefetchCount": 16,
+        "ConcurrentMessageLimit": 4,
+        "KillSwitch": { "Enabled": true, "ActivationThreshold": 5, "TrackingPeriodSeconds": 600, "RestartSeconds": 300 }
+      }
+    }
+  }
+}
+```
+
+```csharp
+var rabbit = configuration.Get<AppSettings>()!.Rabbit;
+
+services.AddCommonConsumers<AppSettings>(assembly, options =>
+{
+    options.Default.ApplyFrom(rabbit.Consumers);
+
+    options.AddGroup("AI", ConsumerSelectors.ForNamespace("App.Consumers.Ai"),
+        group => group.ApplyFrom(rabbit.Consumers.Group("AI")));
+});
+```
+
+Every field has a default, and `Consumers` itself defaults to an empty instance — applications that do not configure the section keep working unchanged. The kill switch stays off unless `Enabled` is set, so adopting the section never silently changes behaviour.
 
 Consumer classes are discovered automatically — any non-abstract class implementing `IConsumer<IMessage>` or `IConsumer<IBulkMessage>` in the provided assembly will be registered.
 
