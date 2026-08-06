@@ -206,7 +206,7 @@ options.Default.WithKillSwitch(k =>
 
 #### Consumer groups
 
-By default every consumer shares one receive endpoint, one prefetch value and one retry policy — so a burst on one message type starves every other consumer, and a kill switch stops all of them at once. Groups split consumers across dedicated endpoints named `{Name}-{group}`:
+By default every consumer shares one receive endpoint, one prefetch value and one retry policy — so a burst on one message type starves every other consumer, and a kill switch stops all of them at once. Groups split consumers across dedicated endpoints named `{Name}{GroupSeparator}{group}` — with the default separator, a `bulk` group on queue `App.Worker` becomes `App.Worker.bulk`. Set `options.GroupSeparator` to change it.
 
 ```csharp
 services.AddCommonConsumers<AppSettings>(typeof(Program).Assembly, options =>

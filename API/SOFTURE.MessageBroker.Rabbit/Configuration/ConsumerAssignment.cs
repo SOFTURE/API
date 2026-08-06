@@ -30,5 +30,5 @@ internal sealed class ConsumerAssignment
         return new ConsumerAssignment(defaultConsumers, groups);
     }
 
-    public static string GetEndpointName(string queueName, string groupName) => $"{queueName}-{groupName}";
+    public static string GetEndpointName(string queueName, string groupName, string separator) => $"{queueName}{separator}{groupName}";
 }

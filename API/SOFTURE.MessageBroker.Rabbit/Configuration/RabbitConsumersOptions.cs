@@ -8,6 +8,8 @@ public sealed class RabbitConsumersOptions
 
     public ConsumerEndpointOptions Default { get; } = new();
 
+    public string GroupSeparator { get; set; } = ".";
+
     public IReadOnlyList<ConsumerGroupOptions> Groups => _groups;
 
     public RabbitConsumersOptions AddGroup(string name, Func<Type, bool> selector, Action<ConsumerGroupOptions>? configure = null)
@@ -31,6 +33,9 @@ public sealed class RabbitConsumersOptions
 
     internal void Validate()
     {
+        if (string.IsNullOrEmpty(GroupSeparator) && _groups.Count > 0)
+            throw new InvalidOperationException("GroupSeparator cannot be empty when consumer groups are registered — group endpoints would collide with the default endpoint name.");
+
         Validate(Default, "default");
 
         foreach (var group in _groups)

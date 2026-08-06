@@ -67,7 +67,7 @@ public static class DependencyInjection
 
                 foreach (var group in options.Groups)
                 {
-                    ConfigureEndpoint(cfg, ctx, ConsumerAssignment.GetEndpointName(consumerSettings.Name, group.Name), group, assignment.Groups[group.Name]);
+                    ConfigureEndpoint(cfg, ctx, ConsumerAssignment.GetEndpointName(consumerSettings.Name, group.Name, options.GroupSeparator), group, assignment.Groups[group.Name]);
                 }
             });
         });
