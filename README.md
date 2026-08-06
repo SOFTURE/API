@@ -146,11 +146,11 @@ services.AddCommonPublisher<AppSettings>();
 **Consumer:**
 
 ```csharp
-services.AddCommonConsumers<AppSettings>(
-    assembly: typeof(Program).Assembly,
-    retryCount: 3,
-    prefetchCount: 50,
-    exponentialRetry: true);
+services.AddCommonConsumers<AppSettings>(typeof(Program).Assembly, options =>
+{
+    options.Default.PrefetchCount = 32;
+    options.Default.ConcurrentMessageLimit = 16;
+});
 ```
 
 Your settings class must implement `IRabbitSettings` and provide:
@@ -158,6 +158,102 @@ Your settings class must implement `IRabbitSettings` and provide:
 - `Name` — queue name (consumers only)
 
 Consumer classes are discovered automatically — any non-abstract class implementing `IConsumer<IMessage>` or `IConsumer<IBulkMessage>` in the provided assembly will be registered.
+
+#### Endpoint options
+
+| Option | Default | Purpose |
+|---|---|---|
+| `PrefetchCount` | `32` | How many messages the broker pushes to the endpoint. |
+| `ConcurrentMessageLimit` | `16` | How many messages are consumed **in parallel**. Leave it `null` and concurrency equals `PrefetchCount` — each in-flight message holds a consumer slot and, typically, a database connection, so an unbounded value will exhaust a connection pool under a burst. |
+| `Retry` | 5 attempts, exponential | Retry policy, including exceptions that skip retry entirely. |
+| `ConfigureRetry` | — | Raw `Action<IRetryConfigurator>` when the declarative settings are not enough. Takes precedence over `Retry`. |
+| `KillSwitch` | off | Stops the endpoint when the failure ratio exceeds a threshold, restarts it after a timeout. |
+| `RateLimit` | off | Caps throughput to N messages per interval. |
+| `ConsumeTimeout` | off | Aborts a consumer that runs longer than the timeout. |
+
+`ConcurrentMessageLimit` must not exceed `PrefetchCount` — the configuration is validated at startup and throws otherwise.
+
+#### Retry and permanent failures
+
+Retrying a failure that cannot heal only burns throughput: an in-process retry holds its consumer slot for the whole backoff. Declare such exceptions so they bypass retry and go straight to the error queue:
+
+```csharp
+options.Default.WithRetry(r =>
+{
+    r.Count = 5;
+    r.MinInterval = TimeSpan.FromSeconds(1);
+    r.MaxInterval = TimeSpan.FromMinutes(2);
+    r.Ignore<ValidationException>();
+    r.Ignore<UnparsableResultException>();
+});
+```
+
+#### Kill switch
+
+When a downstream dependency is down — an exhausted API budget, an overloaded database — retrying every message wastes calls and dead-letters work that would have succeeded minutes later. The kill switch stops the endpoint instead, leaving messages **in the main queue** rather than the error queue, and restarts it after `RestartTimeout`:
+
+```csharp
+options.Default.WithKillSwitch(k =>
+{
+    k.ActivationThreshold = 10;
+    k.TripThreshold = 0.5;
+    k.TrackingPeriod = TimeSpan.FromMinutes(1);
+    k.RestartTimeout = TimeSpan.FromMinutes(5);
+});
+```
+
+`TripThreshold` is a fraction in the `(0, 1]` range — `0.5` trips the endpoint when half of the tracked messages fail.
+
+#### Consumer groups
+
+By default every consumer shares one receive endpoint, one prefetch value and one retry policy — so a burst on one message type starves every other consumer, and a kill switch stops all of them at once. Groups split consumers across dedicated endpoints named `{Name}-{group}`:
+
+```csharp
+services.AddCommonConsumers<AppSettings>(typeof(Program).Assembly, options =>
+{
+    options.Default.PrefetchCount = 16;
+    options.Default.ConcurrentMessageLimit = 8;
+
+    options.AddBulkGroup("bulk", g =>
+    {
+        g.PrefetchCount = 64;
+        g.ConcurrentMessageLimit = 24;
+    });
+
+    options.AddGroup("ai", ConsumerSelectors.ForNamespace("App.Consumers.Ai"), g =>
+    {
+        g.ConcurrentMessageLimit = 4;
+        g.WithRateLimit(limit: 60, interval: TimeSpan.FromMinutes(1));
+        g.WithKillSwitch();
+    });
+});
+```
+
+Consumers matching no group stay on the default endpoint. Selectors are composable via `ConsumerSelectors.ForMessages<TMarker>()`, `ForMessage<TMessage>()`, `ForConsumers(...)`, `ForNamespace(...)` and `Any(...)`.
+
+> Adding a group changes the queue topology — the new queue starts empty while the old one may still hold messages. Drain the existing queue before deploying a grouping change.
+
+#### Breaking change: the `retryCount` / `prefetchCount` overload is gone
+
+**This is a breaking change — call sites using the positional overload will not compile.** That is deliberate: the old overload could not express a concurrency bound, and silently discarded half of what it appeared to configure.
+
+It assigned `PrefetchCount` and the retry policy per consumer inside a loop even though both are endpoint-level settings, so whichever loop ran last won. Applications with at least one `IBulkMessage` consumer therefore ran *every* consumer at the bulk prefetch with the exponential policy, discarding the `PrefetchCount = 1` and `Immediate` retry intended for `IMessage` consumers. Migrating is a chance to state what you actually want rather than inherit that accident.
+
+```csharp
+// before
+services.AddCommonConsumers<AppSettings>(
+    assembly, retryCount: 10, prefetchCount: 1000, exponentialRetry: true);
+
+// after
+services.AddCommonConsumers<AppSettings>(assembly, options =>
+{
+    options.Default.PrefetchCount = 64;
+    options.Default.ConcurrentMessageLimit = 24;
+    options.Default.WithRetry(r => { r.Count = 5; r.IsExponential = true; });
+});
+```
+
+Pick `ConcurrentMessageLimit` from what a single consumer holds while it runs — typically a database connection. Keeping it comfortably below the connection pool size is the point of the setting.
 
 ### Strongly Typed Identifiers
 
