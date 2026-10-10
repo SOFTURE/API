@@ -77,7 +77,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="..\Shared\Otlp\**\*.cs" LinkBase="Shared\Otlp" />
+        <ProjectReference Include="..\SOFTURE.Common.Otlp\SOFTURE.Common.Otlp.csproj" />
     </ItemGroup>
 
     <ItemGroup>

@@ -14,7 +14,8 @@ A collection of reusable .NET libraries providing common infrastructure for buil
 | [SOFTURE.Common.CQRS](https://www.nuget.org/packages/SOFTURE.Common.CQRS) | CQRS middleware and validation behaviors for MediatR pipelines |
 | [SOFTURE.Common.Correlation](https://www.nuget.org/packages/SOFTURE.Common.Correlation) | Request correlation ID tracking for distributed tracing |
 | [SOFTURE.Common.HealthCheck](https://www.nuget.org/packages/SOFTURE.Common.HealthCheck) | Health check framework with standardized response format |
-| [SOFTURE.Common.Logging](https://www.nuget.org/packages/SOFTURE.Common.Logging) | Structured logging with Serilog, optional Seq and OpenTelemetry (OTLP) export |
+| [SOFTURE.Common.Logging](https://www.nuget.org/packages/SOFTURE.Common.Logging) | Structured logging with Serilog, OpenTelemetry (OTLP) export and optional Seq |
+| [SOFTURE.Common.Otlp](https://www.nuget.org/packages/SOFTURE.Common.Otlp) | Shared OpenTelemetry (OTLP) settings used by Logging and Observability |
 | [SOFTURE.Common.Observability](https://www.nuget.org/packages/SOFTURE.Common.Observability) | OpenTelemetry tracing and metrics (OTLP, Prometheus) |
 | [SOFTURE.Common.Resilience](https://www.nuget.org/packages/SOFTURE.Common.Resilience) | HTTP resilience policies — retry, circuit breaker, hedging, fallback |
 | [SOFTURE.Common.StronglyTypedIdentifiers](https://www.nuget.org/packages/SOFTURE.Common.StronglyTypedIdentifiers) | Strongly-typed ID abstractions with EF Core and FastEndpoints support |
@@ -69,94 +70,88 @@ Registers MediatR pipeline behaviors for automatic command validation using Flue
 services.AddMiddlewares();
 ```
 
-### Logging
+### OpenTelemetry settings (`SOFTURE.Common.Otlp`)
 
-Sets up Serilog with console output, an optional Seq sink and an optional OpenTelemetry (OTLP) sink. Minimum level is `Information`, with `Microsoft.*` and `System.*` raised to `Warning`; every event carries the `Application` property and `LogContext` properties.
+`SOFTURE.Common.Logging` and `SOFTURE.Common.Observability` share one settings section, `OpenTelemetry`, defined in `SOFTURE.Common.Otlp` (installed with either package). Logs, traces and metrics are exported over OTLP **http/protobuf** to the same endpoint, with the same headers and the same resource attributes.
 
-```csharp
-services.AddCommonLogging<AppSettings>(); // console + Seq (when configured) + OTLP (when configured)
-services.AddCommonLogging();              // console + OTLP (when configured), no Seq settings needed
-```
-
-With `AddCommonLogging<TSettings>()` your settings class implements `ISeqSettings`:
-- `Seq:Url` — Seq server endpoint. **Optional**: when it is empty or the section is missing, the Seq sink is skipped and the Seq health check is not registered.
-- `Seq:ApiKey` — Seq API key
-
-The OTLP sink is enabled only when an OTLP endpoint is configured (see [OpenTelemetry export](#opentelemetry-export-otlp)). It keeps the whole Serilog pipeline (enrichers, `LogContext`, destructuring) and carries `TraceId`/`SpanId` from `Activity.Current`, so logs written inside a request or a consumer correlate with its trace.
-
-### Observability
-
-Configures OpenTelemetry tracing and metrics with ASP.NET Core, HttpClient, EF Core, Npgsql, runtime and MassTransit instrumentation. Exports traces and metrics over OTLP and metrics via the Prometheus scraping endpoint.
+Your settings class implements `IOpenTelemetrySettings`:
 
 ```csharp
-services.AddCommonObservability<AppSettings>(); // legacy Observability:Url still honoured
-services.AddCommonObservability();              // OpenTelemetry section / OTEL_* variables only
-
-// In the pipeline:
-app.UseCommonOpenTelemetry(); // maps the Prometheus scraping endpoint unless it is disabled
-```
-
-With `AddCommonObservability<TSettings>()` your settings class implements `IObservabilitySettings`:
-- `Observability:Url` — **legacy**, optional OTLP collector endpoint. It is used only when the `OpenTelemetry` section (and the `OTEL_EXPORTER_OTLP_*` variables) name no endpoint. It behaves as before: the URL is used as-is, the protocol defaults to gRPC (or `OTEL_EXPORTER_OTLP_PROTOCOL`), no headers are added. Metrics now go to this URL too (they previously had no endpoint and fell back to `localhost:4317`).
-
-HTTP calls that ship telemetry to the configured OTLP endpoints (for example the Serilog OTLP sink) are excluded from HttpClient tracing, so exports do not generate spans of their own.
-
-### OpenTelemetry export (OTLP)
-
-`SOFTURE.Common.Logging` and `SOFTURE.Common.Observability` read **one** configuration section, `OpenTelemetry`, so logs, traces and metrics go to the same backend with the same resource attributes. The section is read straight from `IConfiguration`, so it does not have to be a property of your settings class (and is not subject to `ValidateSettings`).
-
-```jsonc
-"OpenTelemetry": {
-  "Endpoint": "https://otlp.example.com/otlp",   // base URL; /v1/logs, /v1/traces, /v1/metrics are appended for http/protobuf
-  "Protocol": "HttpProtobuf",                     // HttpProtobuf (default) or Grpc
-  "Headers": "Authorization=Basic <token>",       // standard key=value,key2=value2 format; values may be URL-encoded
-  "ServiceName": "my-service",                    // default: entry assembly name
-  "ServiceNamespace": "my-project",
-  "ServiceVersion": "1.2.3",                      // default: entry assembly informational version (without +metadata)
-  "DeploymentEnvironment": "production",          // default: ASPNETCORE_ENVIRONMENT / DOTNET_ENVIRONMENT
-  "PrometheusEnabled": true                       // Observability only; false skips the Prometheus exporter and endpoint
+public sealed class AppSettings : IOpenTelemetrySettings, ISeqSettings // ISeqSettings is optional
+{
+    public required OpenTelemetrySettings OpenTelemetry { get; init; }
+    public required SeqSettings Seq { get; init; }
 }
 ```
 
-| Key | Default | Notes |
-|---|---|---|
-| `Endpoint` | — | No endpoint (here or in `OTEL_EXPORTER_OTLP_*`) means no OTLP export. For `HttpProtobuf` the per-signal path is appended (`<Endpoint>/v1/logs`, `/v1/traces`, `/v1/metrics`); an endpoint that already ends with it is left alone. For `Grpc` it is used as-is. |
-| `Protocol` | `HttpProtobuf` | Also accepts `http/protobuf` and `grpc`. Note that this default differs from the .NET exporter's gRPC default. |
-| `Headers` | — | Sent with every export (logs, traces and metrics). |
-| `ServiceName` | entry assembly name | Resource attribute `service.name`. |
-| `ServiceNamespace` | — | Resource attribute `service.namespace`. |
-| `ServiceVersion` | entry assembly version | Resource attribute `service.version`. |
-| `DeploymentEnvironment` | hosting environment name | Emitted as `deployment.environment.name` (current semantic conventions) and, for backends that still read it, the deprecated `deployment.environment`. |
-| `PrometheusEnabled` | `true` | Read by `SOFTURE.Common.Observability` only. |
-
-Every signal carries the same resource: `service.name`, `service.namespace`, `service.version`, `deployment.environment.name` (plus `deployment.environment`) and `service.instance.id` (the machine/container name). In Grafana these become the `service_name`, `service_namespace` and `deployment_environment_name` labels used to tell projects and environments apart in one stack.
-
-#### Environment variables
-
-The standard OpenTelemetry variables work as an alternative to the section:
-
-```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp.example.com/otlp
-OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
-OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20<token>
-OTEL_SERVICE_NAME=my-service
-OTEL_RESOURCE_ATTRIBUTES=service.namespace=my-project,deployment.environment.name=production
+```jsonc
+"OpenTelemetry": {
+  "Endpoint": "https://otlp.example.com/otlp",
+  "Headers": "Authorization=Basic <token>",
+  "ServiceName": "my-service",
+  "ServiceNamespace": "my-project",
+  "Environment": "production",
+  "PrometheusEnabled": true
+}
 ```
 
-Signal-specific variables (`OTEL_EXPORTER_OTLP_{LOGS|TRACES|METRICS}_ENDPOINT`, `_PROTOCOL`, `_HEADERS`) are honoured too; a signal-specific endpoint is used as-is. The section can also be supplied through the usual .NET configuration providers, e.g. `OpenTelemetry__Endpoint` and `OpenTelemetry__Headers`.
+| Key | Required | Meaning |
+|---|---|---|
+| `Endpoint` | yes | Base OTLP/HTTP URL. `/v1/logs`, `/v1/traces` and `/v1/metrics` are appended per signal (an endpoint that already ends with the signal path is left alone). |
+| `Headers` | yes | Sent with every export, in the `key=value,key2=value2` format; values may be URL-encoded (`Basic%20<token>`). Use an empty string for a collector without authentication. |
+| `ServiceName` | yes | Resource attribute `service.name`. |
+| `ServiceNamespace` | yes | Resource attribute `service.namespace`. |
+| `Environment` | yes | Resource attribute `deployment.environment.name`, plus the deprecated `deployment.environment` with the same value for backends that still read it. |
+| `PrometheusEnabled` | no (default `true`) | Read by `SOFTURE.Common.Observability`: `false` skips the Prometheus exporter and the scraping endpoint. |
 
-Precedence, per value: the `OpenTelemetry` section (from any configuration provider) → the signal-specific `OTEL_*` variable → the generic `OTEL_*` variable (`OTEL_SERVICE_NAME` before `OTEL_RESOURCE_ATTRIBUTES` for the service name) → the default. In `SOFTURE.Common.Observability` the legacy `Observability:Url` is used only when none of these name an endpoint.
+Every signal also carries `service.version` (the entry assembly's informational version, without `+metadata`) and `service.instance.id` (the machine or container name). In Grafana these become the `service_name`, `service_namespace` and `deployment_environment_name` labels used to tell projects and environments apart in one stack.
 
-> **Secrets**: the `Headers` value (e.g. a Basic auth token) is a credential. Keep it out of committed `appsettings*.json`: inject it from your secret store or deployment environment as `OpenTelemetry__Headers` or `OTEL_EXPORTER_OTLP_HEADERS`.
+Validate the settings at startup with `SOFTURE.Settings`. `ValidateSettings` fails when any section or value is missing, so the packages work only with real values:
 
-#### Migrating from the previous settings
+```csharp
+builder.Configuration.ValidateSettings<AppSettings>();
+builder.Services.ConfigureSettings<AppSettings>(builder.Configuration);
+```
 
-- **Nothing to do to keep the current behaviour.** Existing `Seq` and `Observability:Url` settings work unchanged; nothing is exported over OTLP until an endpoint is configured.
-- **To add an OTLP backend**: add the `OpenTelemetry` section (endpoint and headers from secrets). It applies to logs, traces and metrics at once and takes precedence over `Observability:Url`.
-- **To drop Seq**: leave `Seq:Url` empty (or remove the section and call `AddCommonLogging()`); the Seq health check goes away with it. If you use `ValidateSettings`, keep the `Seq` section with empty values or remove the `Seq` property from your settings class.
-- **To drop `Observability:Url`**: move the endpoint to `OpenTelemetry:Endpoint`. Mind the protocol: the new section defaults to `HttpProtobuf`, the legacy URL used gRPC — set `"Protocol": "Grpc"` when pointing at a gRPC collector port (usually `4317`).
-- An application that already sets `OTEL_EXPORTER_OTLP_ENDPOINT` will now also export **logs** there.
-- Call `Log.CloseAndFlush()` (or `await Log.CloseAndFlushAsync()`) on shutdown so the last batch of logs reaches Seq and the OTLP backend.
+Values can come from any configuration provider, e.g. the environment variables `OpenTelemetry__Endpoint` and `OpenTelemetry__Headers`.
+
+> **Secrets**: `Headers` holds a credential. Never commit it to `appsettings*.json`; inject it from your secret store or the deployment environment (`OpenTelemetry__Headers`).
+
+### Logging
+
+Sets up Serilog with console output and the OTLP sink, plus the Seq sink and the Seq health check when your settings class also implements `ISeqSettings`. Minimum level is `Information`, with `Microsoft.*` and `System.*` raised to `Warning`; every event carries the `Application` property and `LogContext` properties.
+
+```csharp
+services.AddCommonLogging<AppSettings>(); // AppSettings : IOpenTelemetrySettings (and optionally ISeqSettings)
+```
+
+With `ISeqSettings`:
+- `Seq:Url` — Seq server endpoint
+- `Seq:ApiKey` — Seq API key
+
+The OTLP sink keeps the whole Serilog pipeline (enrichers, `LogContext`, destructuring) and carries `TraceId`/`SpanId` from `Activity.Current`, so logs written inside a request or a consumer correlate with its trace. Call `Log.CloseAndFlush()` on shutdown so the last batch reaches the backend.
+
+### Observability
+
+Configures OpenTelemetry tracing and metrics with ASP.NET Core, HttpClient, EF Core, Npgsql, runtime and MassTransit instrumentation. Exports traces and metrics over OTLP and, unless `PrometheusEnabled` is `false`, metrics via the Prometheus scraping endpoint.
+
+```csharp
+services.AddCommonObservability<AppSettings>(); // AppSettings : IOpenTelemetrySettings
+
+// In the pipeline:
+app.UseCommonOpenTelemetry();
+```
+
+HTTP calls to the OTLP endpoint (for example the Serilog OTLP sink's exports) are excluded from HttpClient tracing.
+
+### Migrating Logging and Observability to the OpenTelemetry settings
+
+**This is a breaking change and needs a major version** of `SOFTURE.Common.Logging` and `SOFTURE.Common.Observability`.
+
+1. Implement `IOpenTelemetrySettings` on your settings class and add the `OpenTelemetry` section (headers from secrets).
+2. `IObservabilitySettings` and `ObservabilitySettings` are gone: remove the `Observability` property and the `Observability:Url` section; the endpoint is `OpenTelemetry:Endpoint`. The legacy URL used gRPC; the packages now speak only http/protobuf, so point the endpoint at an OTLP/HTTP receiver (usually port `4318`).
+3. `AddCommonLogging<TSettings>()` now requires `IOpenTelemetrySettings`. To keep Seq, keep `ISeqSettings` on the same class; without it, Seq and its health check are not registered.
+4. Run `ValidateSettings<AppSettings>()` at startup so a missing value fails fast.
 
 ### Resilience
 

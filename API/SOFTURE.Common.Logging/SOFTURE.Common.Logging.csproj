@@ -58,7 +58,7 @@
         <Title>$(AssemblyName)</Title>
         <Authors>SOFTURE</Authors>
         <Copyright>Copyright (c) 2024 $(Authors)</Copyright>
-        <Description>SOFTURE - Logging (Serilog with optional Seq and OTLP sinks)</Description>
+        <Description>SOFTURE - Logging</Description>
         <EmbedUntrackedSources>true</EmbedUntrackedSources>
         <IncludeSymbols>true</IncludeSymbols>
         <PackageId>$(AssemblyName)</PackageId>
@@ -73,7 +73,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="..\Shared\Otlp\**\*.cs" LinkBase="Shared\Otlp" />
+        <ProjectReference Include="..\SOFTURE.Common.Otlp\SOFTURE.Common.Otlp.csproj" />
     </ItemGroup>
 
     <ItemGroup>

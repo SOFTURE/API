@@ -4,9 +4,11 @@ using Npgsql;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
-using SOFTURE.Common.Observability.Exporters;
+using SOFTURE.Common.Observability.Extensions;
 using SOFTURE.Common.Observability.Settings;
-using SOFTURE.Common.Otlp;
+using SOFTURE.Common.Otlp.Extensions;
+using SOFTURE.Common.Otlp.Models;
+using SOFTURE.Common.Otlp.Settings;
 using SOFTURE.Settings.Extensions;
 
 namespace SOFTURE.Common.Observability;
@@ -14,56 +16,26 @@ namespace SOFTURE.Common.Observability;
 public static class DependencyInjection
 {
     public static IServiceCollection AddCommonObservability<TSettings>(this IServiceCollection services)
-        where TSettings : IObservabilitySettings
+        where TSettings : IOpenTelemetrySettings
     {
-        var settings = services.GetSettings<TSettings, ObservabilitySettings?>(x => x.Observability);
+        var settings = services.GetSettings<TSettings, OpenTelemetrySettings>(x => x.OpenTelemetry);
 
-        return services.AddCommonObservabilityCore(settings?.Url);
-    }
-
-    public static IServiceCollection AddCommonObservability(this IServiceCollection services)
-    {
-        return services.AddCommonObservabilityCore(legacyUrl: null);
-    }
-
-    public static WebApplication UseCommonOpenTelemetry(this WebApplication app)
-    {
-        var options = app.Services.GetService<CommonObservabilityOptions>();
-
-        if (options?.PrometheusEnabled ?? true)
-        {
-            app.UseOpenTelemetryPrometheusScrapingEndpoint();
-        }
-
-        return app;
-    }
-
-    private static IServiceCollection AddCommonObservabilityCore(this IServiceCollection services, string? legacyUrl)
-    {
-        var otlp = OtlpConfiguration.FromServices(services);
-        var plan = ObservabilityExportPlan.Create(otlp, legacyUrl);
-        var resourceAttributes = otlp.ResolveResourceAttributes();
-
-        services.AddSingleton(new CommonObservabilityOptions(otlp.PrometheusEnabled));
+        services.AddSingleton(new PrometheusExporterSettings(settings.PrometheusEnabled));
 
         services
             .AddOpenTelemetry()
-            .ConfigureResource(resource => resource.AddAttributes(resourceAttributes))
+            .ConfigureResource(resource => resource.AddAttributes(settings.GetResourceAttributes()))
             .WithMetrics(metrics =>
             {
                 metrics
                     .AddRuntimeInstrumentation()
                     .AddHttpClientInstrumentation()
-                    .AddAspNetCoreInstrumentation();
+                    .AddAspNetCoreInstrumentation()
+                    .AddOtlpExporter(options => options.UseOpenTelemetrySettings(settings, OtlpSignal.Metrics));
 
-                if (otlp.PrometheusEnabled)
+                if (settings.PrometheusEnabled)
                 {
                     metrics.AddPrometheusExporter();
-                }
-
-                if (plan.Metrics is not null)
-                {
-                    metrics.AddOtlpExporter(otlpOptions => plan.Metrics.ApplyTo(otlpOptions));
                 }
             })
             .WithTracing(tracing =>
@@ -73,17 +45,25 @@ public static class DependencyInjection
                     .AddAspNetCoreInstrumentation()
                     .AddHttpClientInstrumentation(options =>
                     {
-                        options.FilterHttpRequestMessage = request => !plan.IsExportRequest(request.RequestUri);
+                        options.FilterHttpRequestMessage = request => !settings.IsExportRequest(request.RequestUri);
                     })
                     .AddEntityFrameworkCoreInstrumentation()
-                    .AddNpgsql();
-
-                if (plan.Traces is not null)
-                {
-                    tracing.AddOtlpExporter(otlpOptions => plan.Traces.ApplyTo(otlpOptions));
-                }
+                    .AddNpgsql()
+                    .AddOtlpExporter(options => options.UseOpenTelemetrySettings(settings, OtlpSignal.Traces));
             });
 
         return services;
+    }
+
+    public static WebApplication UseCommonOpenTelemetry(this WebApplication app)
+    {
+        var prometheus = app.Services.GetRequiredService<PrometheusExporterSettings>();
+
+        if (prometheus.IsEnabled)
+        {
+            app.UseOpenTelemetryPrometheusScrapingEndpoint();
+        }
+
+        return app;
     }
 }

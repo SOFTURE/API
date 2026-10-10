@@ -1,44 +1,28 @@
 using Serilog;
 using Serilog.Sinks.OpenTelemetry;
 using SOFTURE.Common.Logging.Settings;
-using SOFTURE.Common.Otlp;
+using SOFTURE.Common.Otlp.Extensions;
 using SOFTURE.Common.Otlp.Models;
+using SOFTURE.Common.Otlp.Settings;
 
 namespace SOFTURE.Common.Logging.Extensions;
 
 internal static class LoggerConfigurationExtensions
 {
-    public static LoggerConfiguration WriteToSeqIfConfigured(this LoggerConfiguration configuration, SeqSettings? seqSettings)
+    public static LoggerConfiguration WriteToOpenTelemetry(this LoggerConfiguration configuration, OpenTelemetrySettings settings)
     {
-        if (seqSettings.IsConfigured())
-        {
-            configuration.WriteTo.Seq(seqSettings!.Url, apiKey: seqSettings.ApiKey);
-        }
-
-        return configuration;
-    }
-
-    public static LoggerConfiguration WriteToOtlpIfConfigured(this LoggerConfiguration configuration, OtlpConfiguration otlp)
-    {
-        if (otlp.ResolveExport(OtlpSignal.Logs) is not { } logsTarget)
-        {
-            return configuration;
-        }
-
-        var resourceAttributes = otlp.ResolveResourceAttributes();
-
         return configuration.WriteTo.OpenTelemetry(options =>
         {
             options.Endpoint = null;
-            options.LogsEndpoint = logsTarget.Endpoint.ToString();
-            options.Protocol = logsTarget.Protocol.ToSinkProtocol();
-            options.Headers = logsTarget.ParseHeaders();
-            options.ResourceAttributes = new Dictionary<string, object>(resourceAttributes);
+            options.LogsEndpoint = settings.GetSignalEndpoint(OtlpSignal.Logs).ToString();
+            options.Protocol = OtlpProtocol.HttpProtobuf;
+            options.Headers = settings.GetHeaders();
+            options.ResourceAttributes = new Dictionary<string, object>(settings.GetResourceAttributes());
         }, ignoreEnvironment: true);
     }
 
-    public static bool IsConfigured(this SeqSettings? seqSettings) => !string.IsNullOrWhiteSpace(seqSettings?.Url);
-
-    private static OtlpProtocol ToSinkProtocol(this OtlpTransport transport) =>
-        transport == OtlpTransport.Grpc ? OtlpProtocol.Grpc : OtlpProtocol.HttpProtobuf;
+    public static LoggerConfiguration WriteToSeq(this LoggerConfiguration configuration, SeqSettings settings)
+    {
+        return configuration.WriteTo.Seq(settings.Url, apiKey: settings.ApiKey);
+    }
 }

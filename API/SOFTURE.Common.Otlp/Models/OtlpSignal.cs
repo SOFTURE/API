@@ -1,6 +1,6 @@
 namespace SOFTURE.Common.Otlp.Models;
 
-internal enum OtlpSignal
+public enum OtlpSignal
 {
     Traces,
     Metrics,
