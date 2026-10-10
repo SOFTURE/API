@@ -1,6 +1,6 @@
-using SOFTURE.Common.Otlp.Models;
+using SOFTURE.Common.Observability.Models;
 
-namespace SOFTURE.Common.Otlp.Extensions;
+namespace SOFTURE.Common.Observability.Extensions;
 
 public static class OtlpSignalExtensions
 {

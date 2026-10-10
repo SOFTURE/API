@@ -1,9 +1,9 @@
 using OpenTelemetry.Exporter;
-using SOFTURE.Common.Otlp.Extensions;
-using SOFTURE.Common.Otlp.Models;
-using SOFTURE.Common.Otlp.Settings;
+using SOFTURE.Common.Observability.Extensions;
+using SOFTURE.Common.Observability.Models;
+using SOFTURE.Common.Observability.Settings;
 
-namespace SOFTURE.Common.Observability.Extensions;
+namespace SOFTURE.Common.Observability.Telemetry;
 
 internal static class OtlpExporterOptionsExtensions
 {

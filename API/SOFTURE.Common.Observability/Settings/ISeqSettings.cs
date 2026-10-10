@@ -1,4 +1,4 @@
-namespace SOFTURE.Common.Logging.Settings;
+namespace SOFTURE.Common.Observability.Settings;
 
 public interface ISeqSettings
 {

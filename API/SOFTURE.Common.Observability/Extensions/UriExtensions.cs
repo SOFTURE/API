@@ -1,4 +1,4 @@
-namespace SOFTURE.Common.Otlp.Extensions;
+namespace SOFTURE.Common.Observability.Extensions;
 
 public static class UriExtensions
 {

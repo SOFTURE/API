@@ -1,4 +1,4 @@
-namespace SOFTURE.Common.Otlp.Models;
+namespace SOFTURE.Common.Observability.Models;
 
 public enum OtlpSignal
 {

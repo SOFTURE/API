@@ -1,8 +1,8 @@
+using SOFTURE.Common.Observability.Models;
+using SOFTURE.Common.Observability.Settings;
 using System.Reflection;
-using SOFTURE.Common.Otlp.Models;
-using SOFTURE.Common.Otlp.Settings;
 
-namespace SOFTURE.Common.Otlp.Extensions;
+namespace SOFTURE.Common.Observability.Extensions;
 
 public static class OpenTelemetrySettingsExtensions
 {

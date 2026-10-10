@@ -1,4 +1,4 @@
-namespace SOFTURE.Common.Otlp.Settings;
+namespace SOFTURE.Common.Observability.Settings;
 
 public interface IOpenTelemetrySettings
 {

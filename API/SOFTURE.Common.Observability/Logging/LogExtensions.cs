@@ -2,13 +2,16 @@ using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Logging;
 using SOFTURE.Results;
 
-namespace SOFTURE.Common.Logging.Extensions;
+namespace SOFTURE.Common.Observability.Logging;
 
 public static class LogExtensions
 {
     public static Result<T> LogError<T>(this Result<T> result, ILogger logger)
     {
-        if (!result.IsFailure) return result;
+        if (!result.IsFailure)
+        {
+            return result;
+        }
         
         var error = Error.Parse(result.Error);
             
@@ -19,7 +22,10 @@ public static class LogExtensions
 
     public static Result LogError(this Result result, ILogger logger)
     {
-        if (!result.IsFailure) return result;
+        if (!result.IsFailure)
+        {
+            return result;
+        }
         
         var error = Error.Parse(result.Error);
             

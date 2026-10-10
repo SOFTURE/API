@@ -1,31 +1,25 @@
-﻿using System.Reflection;
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using Serilog.Events;
 using SOFTURE.Common.HealthCheck;
-using SOFTURE.Common.Logging.Extensions;
-using SOFTURE.Common.Logging.HealthChecks;
-using SOFTURE.Common.Logging.Settings;
-using SOFTURE.Common.Otlp.Settings;
-using SOFTURE.Settings.Extensions;
+using SOFTURE.Common.Observability.HealthChecks;
+using SOFTURE.Common.Observability.Settings;
 
-namespace SOFTURE.Common.Logging;
+namespace SOFTURE.Common.Observability.Logging;
 
-public static class DependencyInjection
+internal static class LoggingServiceCollectionExtensions
 {
-    private static string ApplicationName() => Assembly.GetEntryAssembly()?.GetName().Name ?? "Unknown";
-
-    public static IServiceCollection AddCommonLogging<TSettings>(this IServiceCollection services)
-        where TSettings : IOpenTelemetrySettings
+    public static IServiceCollection AddCommonLogging(this IServiceCollection services, IOpenTelemetrySettings settings)
     {
-        var settings = services.GetSettings<TSettings, TSettings>(x => x);
+        var applicationName = Assembly.GetEntryAssembly()?.GetName().Name ?? "Unknown";
 
         var loggerConfiguration = new LoggerConfiguration()
             .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
             .MinimumLevel.Override("System", LogEventLevel.Warning)
-            .Enrich.WithProperty("Application", $"{ApplicationName()}")
+            .Enrich.WithProperty("Application", applicationName)
             .Enrich.FromLogContext()
             .WriteTo.Console()
             .WriteToOpenTelemetry(settings.OpenTelemetry);
@@ -37,7 +31,7 @@ public static class DependencyInjection
 
         Log.Logger = loggerConfiguration.CreateLogger();
 
-        Log.Information("{ApplicationName} - Application starting up", ApplicationName());
+        Log.Information("{ApplicationName} - Application starting up", applicationName);
 
         services.AddLogging(loggingBuilder =>
         {
