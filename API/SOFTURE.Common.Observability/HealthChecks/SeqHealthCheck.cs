@@ -2,9 +2,9 @@ using System.Net;
 using CSharpFunctionalExtensions;
 using Microsoft.Extensions.Options;
 using SOFTURE.Common.HealthCheck.Core;
-using SOFTURE.Common.Logging.Settings;
+using SOFTURE.Common.Observability.Settings;
 
-namespace SOFTURE.Common.Logging.HealthChecks;
+namespace SOFTURE.Common.Observability.HealthChecks;
 
 internal sealed class SeqHealthCheck(HttpClient httpClient, IOptions<SeqSettings> settings) : CheckBase
 {
