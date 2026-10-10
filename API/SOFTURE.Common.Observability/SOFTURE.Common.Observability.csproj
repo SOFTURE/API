@@ -77,7 +77,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <Compile Include="..\Shared\Otlp\*.cs" LinkBase="Shared\Otlp" />
+        <Compile Include="..\Shared\Otlp\**\*.cs" LinkBase="Shared\Otlp" />
     </ItemGroup>
 
     <ItemGroup>
