@@ -24,6 +24,7 @@ internal static class TelemetryServiceCollectionExtensions
                     .AddRuntimeInstrumentation()
                     .AddHttpClientInstrumentation()
                     .AddAspNetCoreInstrumentation()
+                    .AddView(instrument => MetricStreamSelector.Select(instrument, settings.Metrics))
                     .AddOtlpExporter(options => options.UseOpenTelemetrySettings(settings, OtlpSignal.Metrics));
 
                 if (settings.PrometheusEnabled)

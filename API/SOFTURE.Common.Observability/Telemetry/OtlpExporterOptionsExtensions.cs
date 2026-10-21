@@ -12,5 +12,9 @@ internal static class OtlpExporterOptionsExtensions
         options.Endpoint = settings.GetSignalEndpoint(signal);
         options.Protocol = OtlpExportProtocol.HttpProtobuf;
         options.Headers = settings.Headers;
+        options.HttpClientFactory = () => new HttpClient(ExportHttpMessageHandler.Create())
+        {
+            Timeout = TimeSpan.FromMilliseconds(options.TimeoutMilliseconds)
+        };
     }
 }

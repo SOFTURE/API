@@ -17,6 +17,8 @@ public static class DependencyInjection
     {
         services.AddMassTransit(config =>
         {
+            DisableUsageTelemetry(config);
+
             config.UsingRabbitMq((ctx, cfg) =>
             {
                 var publisherSettings = ctx.GetRequiredService<TSettings>().Rabbit;
@@ -50,6 +52,8 @@ public static class DependencyInjection
 
         services.AddMassTransit(config =>
         {
+            DisableUsageTelemetry(config);
+
             foreach (var consumerType in allConsumerTypes)
                 config.AddConsumer(consumerType);
 
@@ -138,6 +142,13 @@ public static class DependencyInjection
             else
                 r.Immediate(retry.Count);
         });
+    }
+
+    private static void DisableUsageTelemetry(IBusRegistrationConfigurator config)
+    {
+#if !NET6_0
+        config.DisableUsageTelemetry();
+#endif
     }
 
     private static void ConfigureHost(IRabbitMqHostConfigurator host)

@@ -81,7 +81,7 @@ app.UseCommonObservability();
 What it registers:
 - **Logs**: Serilog with the console sink and the OTLP sink. Minimum level is `Information`, with `Microsoft.*` and `System.*` raised to `Warning`. Every event carries the `Application` property and `LogContext` properties. `TraceId`/`SpanId` come from `Activity.Current`, so logs correlate with traces. When your settings class also implements `ISeqSettings`, the Seq sink and the Seq health check are added.
 - **Traces**: ASP.NET Core, HttpClient, EF Core, Npgsql and MassTransit instrumentation. HTTP calls to the OTLP endpoint itself are not traced.
-- **Metrics**: runtime, HttpClient and ASP.NET Core instrumentation, exported over OTLP and through the Prometheus exporter unless `PrometheusEnabled` is `false`.
+- **Metrics**: runtime, HttpClient and ASP.NET Core instrumentation, exported over OTLP and through the Prometheus exporter unless `PrometheusEnabled` is `false`. The default `Minimal` profile keeps the active series count low (see [Metrics profile](#metrics-profile)). Requests the package sends itself (OTLP export, the Seq sink) are left out of the HttpClient metrics on .NET 8 and later.
 
 #### Settings
 
@@ -102,7 +102,11 @@ public sealed class AppSettings : IOpenTelemetrySettings, ISeqSettings
   "ServiceName": "my-service",
   "ServiceNamespace": "my-project",
   "Environment": "production",
-  "PrometheusEnabled": true
+  "PrometheusEnabled": true,
+  "Metrics": {
+    "Profile": "Minimal",
+    "DroppedInstruments": []
+  }
 },
 "Seq": {
   "Url": "http://seq.example.com",
@@ -118,6 +122,8 @@ public sealed class AppSettings : IOpenTelemetrySettings, ISeqSettings
 | `OpenTelemetry:ServiceNamespace` | yes | Resource attribute `service.namespace`. |
 | `OpenTelemetry:Environment` | yes | Resource attribute `deployment.environment.name`, plus the deprecated `deployment.environment` with the same value for backends that still read it. |
 | `OpenTelemetry:PrometheusEnabled` | no (default `true`) | `false` skips the Prometheus exporter and its scraping endpoint. |
+| `OpenTelemetry:Metrics:Profile` | no (default `Minimal`) | `Minimal` or `Full`, see [Metrics profile](#metrics-profile). |
+| `OpenTelemetry:Metrics:DroppedInstruments` | no (default empty) | Extra instrument names to drop, in both profiles. A trailing `*` matches a prefix (`kestrel.*`). |
 | `Seq:Url`, `Seq:ApiKey` | with `ISeqSettings` | Seq server and API key. |
 
 Every signal also carries `service.version` (the entry assembly's informational version, without `+metadata`) and `service.instance.id` (the machine or container name). In Grafana these become the `service_name`, `service_namespace` and `deployment_environment_name` labels used to tell projects and environments apart in one stack.
@@ -134,6 +140,16 @@ Values can come from any configuration provider, for example the environment var
 > **Secrets**: `OpenTelemetry:Headers` holds a credential. Never commit it to `appsettings*.json`; inject it from your secret store or the deployment environment (`OpenTelemetry__Headers`).
 
 Call `Log.CloseAndFlush()` on shutdown so the last batch of logs reaches the backend.
+
+#### Metrics profile
+
+Every histogram bucket is a separate series, so the default instrumentation quickly fills a backend that bills or limits by active series. The `Minimal` profile (the default):
+
+- drops `dns.lookup.duration`, `http.client.connection.duration`, `http.client.request.time_in_queue`, `http.client.open_connections`, `http.client.active_requests`, `aspnetcore.authentication.authenticate.duration`, `aspnetcore.routing.match_attempts`, `kestrel.connection.duration`, `aspnetcore.rate_limiting.request_lease.duration` and `aspnetcore.memory_pool.*`;
+- exports `http.server.request.duration` and `http.client.request.duration` with the buckets `0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10` seconds (10 buckets instead of 15);
+- keeps everything else, including the `dotnet.*` runtime metrics and `aspnetcore.rate_limiting.requests`.
+
+`Full` exports every instrument with the default buckets. `DroppedInstruments` applies on top of either profile, so a service can switch to `Full` and still drop what it does not need.
 
 #### Result logging helpers
 
@@ -191,7 +207,7 @@ Health check classes must extend `CheckBase` and implement `ICommonHealthCheck`.
 
 ### Message Broker (RabbitMQ)
 
-Configures MassTransit with RabbitMQ for publishing and consuming messages. Includes in-memory outbox, correlation logging filters, and automatic consumer discovery.
+Configures MassTransit with RabbitMQ for publishing and consuming messages. Includes in-memory outbox, correlation logging filters, and automatic consumer discovery. MassTransit usage telemetry (reports to `usage-tracking.masstransit.io`) is disabled.
 
 **Publisher:**
 

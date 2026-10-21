@@ -3,6 +3,7 @@ using Serilog.Sinks.OpenTelemetry;
 using SOFTURE.Common.Observability.Extensions;
 using SOFTURE.Common.Observability.Models;
 using SOFTURE.Common.Observability.Settings;
+using SOFTURE.Common.Observability.Telemetry;
 
 namespace SOFTURE.Common.Observability.Logging;
 
@@ -17,11 +18,12 @@ internal static class LoggerConfigurationExtensions
             options.Protocol = OtlpProtocol.HttpProtobuf;
             options.Headers = settings.GetHeaders();
             options.ResourceAttributes = new Dictionary<string, object>(settings.GetResourceAttributes());
+            options.HttpMessageHandler = ExportHttpMessageHandler.Create();
         }, ignoreEnvironment: true);
     }
 
     public static LoggerConfiguration WriteToSeq(this LoggerConfiguration configuration, SeqSettings settings)
     {
-        return configuration.WriteTo.Seq(settings.Url, apiKey: settings.ApiKey);
+        return configuration.WriteTo.Seq(settings.Url, apiKey: settings.ApiKey, messageHandler: ExportHttpMessageHandler.Create());
     }
 }

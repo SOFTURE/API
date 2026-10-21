@@ -19,4 +19,6 @@ public sealed class OpenTelemetrySettings
 #endif
 
     public bool PrometheusEnabled { get; init; } = true;
+
+    public MetricsSettings Metrics { get; init; } = new();
 }
