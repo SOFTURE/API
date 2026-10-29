@@ -1,7 +1,7 @@
 #if NET8_0_OR_GREATER
 using System.Diagnostics.Metrics;
 
-namespace SOFTURE.Common.Observability.Telemetry;
+namespace SOFTURE.Common.Observability.Export;
 
 internal sealed class UnobservedMeterFactory : IMeterFactory
 {

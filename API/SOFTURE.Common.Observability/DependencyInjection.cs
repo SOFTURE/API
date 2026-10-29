@@ -1,8 +1,7 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
-using SOFTURE.Common.Observability.Logging;
+using SOFTURE.Common.Observability.Extensions;
 using SOFTURE.Common.Observability.Settings;
-using SOFTURE.Common.Observability.Telemetry;
 using SOFTURE.Settings.Extensions;
 
 namespace SOFTURE.Common.Observability;
@@ -16,7 +15,7 @@ public static class DependencyInjection
 
         return services
             .AddCommonLogging(settings)
-            .AddCommonTelemetry(settings.OpenTelemetry);
+            .AddCommonTelemetry(settings);
     }
 
     public static WebApplication UseCommonObservability(this WebApplication app)

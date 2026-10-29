@@ -7,7 +7,7 @@ using SOFTURE.Common.HealthCheck;
 using SOFTURE.Common.Observability.HealthChecks;
 using SOFTURE.Common.Observability.Settings;
 
-namespace SOFTURE.Common.Observability.Logging;
+namespace SOFTURE.Common.Observability.Extensions;
 
 internal static class LoggingServiceCollectionExtensions
 {
