@@ -109,4 +109,8 @@
         <None Include="..\..\LICENSE" Pack="true" PackagePath="\"/>
     </ItemGroup>
 
+    <ItemGroup>
+        <InternalsVisibleTo Include="SOFTURE.Common.Observability.Tests" />
+    </ItemGroup>
+
 </Project>

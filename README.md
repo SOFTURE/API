@@ -80,8 +80,8 @@ app.UseCommonObservability();
 
 What it registers:
 - **Logs**: Serilog with the console sink and the OTLP sink. Minimum level is `Information`, with `Microsoft.*` and `System.*` raised to `Warning`. Every event carries the `Application` property and `LogContext` properties. `TraceId`/`SpanId` come from `Activity.Current`, so logs correlate with traces. When your settings class also implements `ISeqSettings`, the Seq sink and the Seq health check are added.
-- **Traces**: ASP.NET Core, HttpClient, EF Core, Npgsql and MassTransit instrumentation. HTTP calls to the OTLP endpoint itself are not traced.
-- **Metrics**: runtime, HttpClient and ASP.NET Core instrumentation, exported over OTLP and through the Prometheus exporter unless `PrometheusEnabled` is `false`. The default `Minimal` profile keeps the active series count low (see [Metrics profile](#metrics-profile)). Requests the package sends itself (OTLP export, the Seq sink) are left out of the HttpClient metrics on .NET 8 and later.
+- **Traces**: ASP.NET Core, HttpClient, EF Core, Npgsql and MassTransit instrumentation. HTTP calls to the OTLP endpoint and to Seq are not traced.
+- **Metrics**: runtime, HttpClient and ASP.NET Core instrumentation (each can be switched off), exported over OTLP and through the Prometheus exporter unless `PrometheusEnabled` is `false`. The default `Minimal` profile keeps the active series count low (see [Metrics profile](#metrics-profile) and [Request duration histograms](#request-duration-histograms)). Requests to the OTLP endpoint and to Seq are left out of the HttpClient metrics on every target framework, whoever sends them.
 
 #### Settings
 
@@ -105,7 +105,16 @@ public sealed class AppSettings : IOpenTelemetrySettings, ISeqSettings
   "PrometheusEnabled": true,
   "Metrics": {
     "Profile": "Minimal",
-    "DroppedInstruments": []
+    "DroppedInstruments": [],
+    "RequestDurationBoundaries": [],
+    "GroupStatusCodes": false,
+    "DroppedRequestDurationTags": [],
+    "ExcludedRoutes": [],
+    "ExcludeUnmatchedRoutes": false,
+    "ExcludedHttpClientHosts": [],
+    "AspNetCoreEnabled": true,
+    "HttpClientEnabled": true,
+    "RuntimeEnabled": true
   }
 },
 "Seq": {
@@ -123,7 +132,14 @@ public sealed class AppSettings : IOpenTelemetrySettings, ISeqSettings
 | `OpenTelemetry:Environment` | yes | Resource attribute `deployment.environment.name`, plus the deprecated `deployment.environment` with the same value for backends that still read it. |
 | `OpenTelemetry:PrometheusEnabled` | no (default `true`) | `false` skips the Prometheus exporter and its scraping endpoint. |
 | `OpenTelemetry:Metrics:Profile` | no (default `Minimal`) | `Minimal` or `Full`, see [Metrics profile](#metrics-profile). |
-| `OpenTelemetry:Metrics:DroppedInstruments` | no (default empty) | Extra instrument names to drop, in both profiles. A trailing `*` matches a prefix (`kestrel.*`). |
+| `OpenTelemetry:Metrics:DroppedInstruments` | no (default empty) | Extra instrument names to drop, in both profiles. A leading or trailing `*` matches a suffix or a prefix (`kestrel.*`). |
+| `OpenTelemetry:Metrics:RequestDurationBoundaries` | no (default from the profile) | Bucket boundaries in seconds for both request duration histograms, in ascending order. Applies in both profiles. |
+| `OpenTelemetry:Metrics:GroupStatusCodes` | no (default `false`) | `true` replaces `http.response.status_code` with `http.response.status_class` (`2xx`, `4xx`, `5xx`, …), and a numeric `error.type` with its class. |
+| `OpenTelemetry:Metrics:DroppedRequestDurationTags` | no (default empty) | Tags removed from both request duration histograms, e.g. `network.protocol.version`, `url.scheme`. |
+| `OpenTelemetry:Metrics:ExcludedRoutes` | no (default empty) | Route templates (`http.route`) left out of `http.server.request.duration`, e.g. `/hc`, `/openapi*`. The leading `/` is optional; `*` works as above. |
+| `OpenTelemetry:Metrics:ExcludeUnmatchedRoutes` | no (default `false`) | `true` leaves out server requests without a route: 404s, scanners, middleware such as the Prometheus scraping endpoint or Swagger UI. |
+| `OpenTelemetry:Metrics:ExcludedHttpClientHosts` | no (default empty) | Hosts (`server.address`) left out of `http.client.request.duration`; `*` works as above. |
+| `OpenTelemetry:Metrics:AspNetCoreEnabled`, `HttpClientEnabled`, `RuntimeEnabled` | no (default `true`) | `false` skips that instrumentation's metrics entirely, e.g. a worker without public endpoints sets `AspNetCoreEnabled` to `false`. |
 | `Seq:Url`, `Seq:ApiKey` | with `ISeqSettings` | Seq server and API key. |
 
 Every signal also carries `service.version` (the entry assembly's informational version, without `+metadata`) and `service.instance.id` (the machine or container name). In Grafana these become the `service_name`, `service_namespace` and `deployment_environment_name` labels used to tell projects and environments apart in one stack.
@@ -146,10 +162,30 @@ Call `Log.CloseAndFlush()` on shutdown so the last batch of logs reaches the bac
 Every histogram bucket is a separate series, so the default instrumentation quickly fills a backend that bills or limits by active series. The `Minimal` profile (the default):
 
 - drops `dns.lookup.duration`, `http.client.connection.duration`, `http.client.request.time_in_queue`, `http.client.open_connections`, `http.client.active_requests`, `aspnetcore.authentication.authenticate.duration`, `aspnetcore.routing.match_attempts`, `kestrel.connection.duration`, `aspnetcore.rate_limiting.request_lease.duration` and `aspnetcore.memory_pool.*`;
-- exports `http.server.request.duration` and `http.client.request.duration` with the buckets `0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10` seconds (10 buckets instead of 15);
+- exports `http.server.request.duration` and `http.client.request.duration` with the buckets `0.05, 0.25, 1, 5` seconds (5 bucket series instead of 15);
+- leaves certificate revocation downloads (`crl*`, `ocsp*`, `*.lencr.org`, `*.pki.goog`) out of `http.client.request.duration`;
 - keeps everything else, including the `dotnet.*` runtime metrics and `aspnetcore.rate_limiting.requests`.
 
-`Full` exports every instrument with the default buckets. `DroppedInstruments` applies on top of either profile, so a service can switch to `Full` and still drop what it does not need.
+Earlier versions of the `Minimal` profile used `0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10`; set `RequestDurationBoundaries` to that list to keep dashboards that rely on those buckets.
+
+`Full` exports every instrument with the default buckets (`0.005` to `10` seconds, 15 bucket series). The other `Metrics` settings apply on top of either profile, so a service can switch to `Full` and still drop what it does not need.
+
+#### Request duration histograms
+
+The two request duration histograms usually make up most of the active series: every combination of route (or host), method and status code is one histogram, and each histogram exports one series per bucket plus `_sum` and `_count`. The package re-records both histograms under its own meter, `SOFTURE.Common.Observability.Http`, so it can filter and reshape individual requests before they reach the exporter. Names, units and tags stay the same; only `otel_scope_name` changes from `Microsoft.AspNetCore.Hosting` / `System.Net.Http` to `SOFTURE.Common.Observability.Http`.
+
+To cut the series further while keeping rate, errors and duration per route and method:
+
+```jsonc
+"Metrics": {
+  "GroupStatusCodes": true,
+  "DroppedRequestDurationTags": ["network.protocol.version", "url.scheme"],
+  "ExcludedRoutes": ["/hc", "/openapi*", "/swagger*"],
+  "ExcludeUnmatchedRoutes": true
+}
+```
+
+Errors stay answerable from `http_response_status_class="5xx"`, and named `error.type` values such as exception types or `connection_error` are kept.
 
 #### Result logging helpers
 

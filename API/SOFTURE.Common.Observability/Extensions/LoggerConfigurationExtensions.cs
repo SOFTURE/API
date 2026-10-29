@@ -1,11 +1,10 @@
 using Serilog;
 using Serilog.Sinks.OpenTelemetry;
-using SOFTURE.Common.Observability.Extensions;
+using SOFTURE.Common.Observability.Export;
 using SOFTURE.Common.Observability.Models;
 using SOFTURE.Common.Observability.Settings;
-using SOFTURE.Common.Observability.Telemetry;
 
-namespace SOFTURE.Common.Observability.Logging;
+namespace SOFTURE.Common.Observability.Extensions;
 
 internal static class LoggerConfigurationExtensions
 {

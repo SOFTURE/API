@@ -1,4 +1,4 @@
-namespace SOFTURE.Common.Observability.Telemetry;
+namespace SOFTURE.Common.Observability.Export;
 
 internal static class ExportHttpMessageHandler
 {
