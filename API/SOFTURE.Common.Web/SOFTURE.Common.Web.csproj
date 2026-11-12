@@ -17,7 +17,7 @@
 
     <ItemGroup Condition=" '$(TargetFramework)' == 'net10.0' ">
         <PackageReference Include="Serilog" Version="4.4.0" />
-        <PackageReference Include="SOFTURE.Common.Correlation" Version="1.6.0" />
+        <PackageReference Include="SOFTURE.Common.Correlation" Version="2.0.0" />
     </ItemGroup>
 
     <PropertyGroup>
