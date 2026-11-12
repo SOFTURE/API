@@ -1,0 +1,280 @@
+name: release
+
+on:
+  push:
+    tags: ["*@*.*.*"]
+  pull_request:
+    paths:
+      - ".github/workflows/release.yml"
+      - "API/**/*.csproj"
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package to dry-run (on a branch); on a tag the tag decides"
+        type: choice
+        required: true
+        options:
+          - authentication
+          - correlation
+          - cqrs
+          - healthcheck
+          - observability
+          - rabbit
+          - resilience
+          - strongly-typed-identifiers
+          - web
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}-${{ inputs.package }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: 🔍 validate and pack
+    runs-on: ubuntu-latest
+    outputs:
+      package: ${{ steps.plan.outputs.package }}
+      package-id: ${{ steps.plan.outputs.package-id }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      publish: ${{ steps.plan.outputs.publish }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 🧭 Plan the release
+        id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          INPUT_PACKAGE: ${{ inputs.package }}
+        run: |
+          set -euo pipefail
+          semver='^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'
+          publish=false
+          package=""
+          version=""
+
+          if [ "$REF_TYPE" = "tag" ]; then
+            package="${REF_NAME%%@*}"
+            version="${REF_NAME#*@}"
+            publish=true
+          elif [ "$EVENT" = "workflow_dispatch" ]; then
+            package="$INPUT_PACKAGE"
+          fi
+
+          case "$package" in
+            authentication)             package_id="SOFTURE.Common.Authentication" ;;
+            correlation)                package_id="SOFTURE.Common.Correlation" ;;
+            cqrs)                       package_id="SOFTURE.Common.CQRS" ;;
+            healthcheck)                package_id="SOFTURE.Common.HealthCheck" ;;
+            observability)              package_id="SOFTURE.Common.Observability" ;;
+            rabbit)                     package_id="SOFTURE.MessageBroker.Rabbit" ;;
+            resilience)                 package_id="SOFTURE.Common.Resilience" ;;
+            strongly-typed-identifiers) package_id="SOFTURE.Common.StronglyTypedIdentifiers" ;;
+            web)                        package_id="SOFTURE.Common.Web" ;;
+            "")                         package_id="" ;;
+            *) echo "::error::Unknown package '$package'. Known: authentication, correlation, cqrs, healthcheck, observability, rabbit, resilience, strongly-typed-identifiers, web."; exit 1 ;;
+          esac
+
+          if [ -n "$version" ] && ! [[ "$version" =~ $semver ]]; then
+            echo "::error::'$version' is not a version (expected x.y.z or x.y.z-suffix)."
+            exit 1
+          fi
+
+          tag=""
+          if [ "$publish" = true ]; then
+            tag="$REF_NAME"
+          fi
+
+          prerelease=false
+          if [[ "$version" == *-* ]]; then prerelease=true; fi
+
+          {
+            echo "package=$package"
+            echo "package-id=$package_id"
+            echo "version=$version"
+            echo "tag=$tag"
+            echo "publish=$publish"
+            echo "prerelease=$prerelease"
+          } >> "$GITHUB_OUTPUT"
+
+          if [ "$publish" = true ]; then
+            echo "🚀 Release: \`$package_id $version\` (tag \`$tag\`)" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "🧪 Dry run: ${package_id:-every package}, nothing published" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: 🌿 Commit is on master
+        if: steps.plan.outputs.publish == 'true'
+        run: |
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/master \
+            || { echo "::error::The commit $GITHUB_SHA is not on master."; exit 1; }
+
+      - name: ⚙️ Install dotnet
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+            10.0.x
+
+      - name: 🔗 Restore dependencies
+        run: dotnet restore ./API
+
+      - name: 🏗️ Build every package
+        run: dotnet build ./API --no-restore -c Release
+
+      - name: 🧪 Run the tests
+        run: dotnet test ./API --no-build -c Release
+
+      - name: 🛡️ Vulnerability gate
+        env:
+          PACKAGE_ID: ${{ steps.plan.outputs.package-id }}
+        run: |
+          set -euo pipefail
+          if [ -n "$PACKAGE_ID" ]; then
+            target="./API/${PACKAGE_ID}/${PACKAGE_ID}.csproj"
+          else
+            target="./API"
+          fi
+          net10=$(dotnet list "$target" package --vulnerable --include-transitive --no-restore --framework net10.0 2>&1)
+          echo "$net10"
+          if grep -q "^ *>" <<<"$net10"; then
+            echo "::error::Vulnerable packages on net10.0, see the report above."
+            exit 1
+          fi
+          older=$(dotnet list "$target" package --vulnerable --include-transitive --no-restore 2>&1)
+          if grep -q "^ *>" <<<"$older"; then
+            echo "$older"
+            echo "::warning::net10.0 is clean, but older target frameworks carry known vulnerabilities (report above)."
+          fi
+
+      - name: 📦 Pack
+        env:
+          PACKAGE_ID: ${{ steps.plan.outputs.package-id }}
+          VERSION: ${{ steps.plan.outputs.version }}
+        run: |
+          set -euo pipefail
+          version="${VERSION:-0.0.0-dryrun}"
+          if [ -n "$PACKAGE_ID" ]; then
+            projects=("./API/${PACKAGE_ID}/${PACKAGE_ID}.csproj")
+          else
+            mapfile -t projects < <(find ./API -name '*.csproj' -not -path '*/obj/*' -not -name '*.Tests.csproj' | sort)
+          fi
+          for project in "${projects[@]}"; do
+            dotnet pack "$project" --no-build -c Release -o ./artifacts "/p:PackageVersion=$version" "/p:Version=$version"
+          done
+
+      - name: ✅ Check the packages
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          packages=(./artifacts/*.nupkg)
+          [ ${#packages[@]} -gt 0 ] || { echo "::error::No package was produced."; exit 1; }
+          for nupkg in "${packages[@]}"; do
+            [[ "$nupkg" == *.symbols.nupkg ]] && continue
+            listing=$(unzip -Z1 "$nupkg")
+            for tfm in net6.0 net8.0 net10.0; do
+              grep -q "^lib/${tfm}/" <<<"$listing" \
+                || { echo "::error::$(basename "$nupkg") has no lib/${tfm}/ build."; exit 1; }
+            done
+            echo "$(basename "$nupkg"): lib/net6.0, lib/net8.0, lib/net10.0"
+          done
+
+      - name: 📤 Upload the packages
+        uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: ./artifacts/*.nupkg
+          if-no-files-found: error
+
+  publish:
+    name: 🚀 publish to nuget.org
+    needs: validate
+    if: needs.validate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: 📥 Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          name: packages
+          path: ./artifacts
+
+      - name: ⚙️ Install dotnet
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: 🔐 NuGet login (OIDC)
+        id: login
+        uses: NuGet/login@v1
+        with:
+          user: ${{ secrets.NUGET_USER }}
+
+      - name: 🚀 Push to nuget.org
+        env:
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
+          PACKAGE_ID: ${{ needs.validate.outputs.package-id }}
+          VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          set -euo pipefail
+          dotnet nuget push "./artifacts/${PACKAGE_ID}.${VERSION}.nupkg" \
+            --api-key "$NUGET_API_KEY" \
+            --source https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+          echo "::notice::${PACKAGE_ID} ${VERSION} is pushed to nuget.org (indexing takes a few minutes)."
+
+  github-release:
+    name: 📝 create the GitHub Release
+    needs: [validate, publish]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: 📥 Download the packages
+        uses: actions/download-artifact@v8
+        with:
+          name: packages
+          path: ./artifacts
+
+      - name: 📝 Create the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.tag }}
+          PACKAGE: ${{ needs.validate.outputs.package }}
+          PACKAGE_ID: ${{ needs.validate.outputs.package-id }}
+          VERSION: ${{ needs.validate.outputs.version }}
+          PRERELEASE: ${{ needs.validate.outputs.prerelease }}
+        run: |
+          set -euo pipefail
+          git fetch --tags --force origin
+          nupkg="./artifacts/${PACKAGE_ID}.${VERSION}.nupkg"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "$nupkg" --clobber
+            exit 0
+          fi
+          notes=$(printf '%s\n' \
+            "NuGet: \`dotnet add package ${PACKAGE_ID} --version ${VERSION}\`" \
+            "" \
+            "https://www.nuget.org/packages/${PACKAGE_ID}/${VERSION}")
+          args=(--verify-tag --generate-notes --title "$TAG" --notes "$notes")
+          previous=$(git -c versionsort.suffix=- tag --merged "$TAG" --list "${PACKAGE}@*" --sort=-v:refname | grep -vxF "$TAG" | head -n 1 || true)
+          if [ -n "$previous" ]; then args+=(--notes-start-tag "$previous"); fi
+          if [ "$PRERELEASE" = true ]; then args+=(--prerelease); fi
+          gh release create "$TAG" "$nupkg" "${args[@]}"

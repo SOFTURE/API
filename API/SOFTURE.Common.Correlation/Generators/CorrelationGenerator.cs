@@ -10,10 +10,6 @@ public static class CorrelationGenerator
         return new CorrelationId(Guid.CreateVersion7());
 #endif
 
-#if NET9_0
-        return new CorrelationId(Guid.CreateVersion7());
-#endif
-
 #if NET8_0
         return new CorrelationId(Guid.NewGuid());
 #endif

@@ -2,7 +2,7 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![NuGet](https://img.shields.io/nuget/v/SOFTURE.Common.CQRS.svg?label=NuGet)](https://www.nuget.org/profiles/SOFTURE)
-[![.NET](https://img.shields.io/badge/.NET-6.0%20%7C%208.0%20%7C%209.0%20%7C%2010.0-purple)](https://dotnet.microsoft.com/)
+[![.NET](https://img.shields.io/badge/.NET-6.0%20%7C%208.0%20%7C%2010.0-purple)](https://dotnet.microsoft.com/)
 
 A collection of reusable .NET libraries providing common infrastructure for building distributed, observable, and resilient microservices. Each module is published as an independent NuGet package and can be adopted incrementally.
 
@@ -24,7 +24,7 @@ A collection of reusable .NET libraries providing common infrastructure for buil
 
 ### Prerequisites
 
-- [.NET SDK](https://dotnet.microsoft.com/download) 6.0, 8.0, 9.0, or 10.0
+- [.NET SDK](https://dotnet.microsoft.com/download) 6.0, 8.0, or 10.0
 
 ### Installation
 
@@ -465,7 +465,6 @@ Reads the `X-Correlation-ID` header (or generates one), stores it in `ICorrelati
 |-----------|--------|
 | .NET 6.0  | Supported |
 | .NET 8.0  | Supported |
-| .NET 9.0  | Supported |
 | .NET 10.0 | Supported |
 
 ## Contributing
@@ -486,12 +485,74 @@ dotnet restore
 dotnet build
 ```
 
-### Releasing
+### Releasing a package
 
-Each package has its own GitHub Actions workflow. To release a new version:
+Every package is versioned and released on its own by the single workflow
+[`release.yml`](.github/workflows/release.yml). One run releases one package to nuget.org and creates a
+GitHub Release with the `.nupkg` attached.
 
-1. Create a GitHub Release with a version tag (e.g., `1.0.0`)
-2. The corresponding workflow will pack and push the package to NuGet.org
+| Short name | Package |
+|------------|---------|
+| `authentication` | `SOFTURE.Common.Authentication` |
+| `correlation` | `SOFTURE.Common.Correlation` |
+| `cqrs` | `SOFTURE.Common.CQRS` |
+| `healthcheck` | `SOFTURE.Common.HealthCheck` |
+| `observability` | `SOFTURE.Common.Observability` |
+| `rabbit` | `SOFTURE.MessageBroker.Rabbit` |
+| `resilience` | `SOFTURE.Common.Resilience` |
+| `strongly-typed-identifiers` | `SOFTURE.Common.StronglyTypedIdentifiers` |
+| `web` | `SOFTURE.Common.Web` |
+
+#### Release
+
+A release starts from a tag `<package>@<version>` (e.g. `observability@1.7.0`) created by hand; the workflow
+never creates tags. In GitHub: Releases → **Draft a new release** → **Choose a tag** → type
+`observability@1.7.0` → **Create new tag on publish**, target `master` → **Publish release**. The new tag
+starts the workflow, which publishes the package to nuget.org and attaches the `.nupkg` to that release.
+Pushing the tag from a terminal works the same way (the workflow then creates the GitHub Release itself):
+
+```bash
+git tag -a observability@1.7.0 -m observability@1.7.0
+git push origin observability@1.7.0
+```
+
+Push at most three tags at once: GitHub starts no workflow for a push of more than three tags. The tag
+must point at a commit on `master`. A version with a suffix (`1.8.0-beta.1`) is published as a prerelease.
+To retry a failed release, use **Run workflow** with the tag selected as the ref; the tag decides the
+package and version.
+
+#### Dry run
+
+Actions → **release** → **Run workflow** on a branch, pick the package: build, tests, vulnerability gate and
+pack, nothing published. A pull request that changes `release.yml` or a `.csproj` runs the same checks for
+every package.
+
+#### What a release checks
+
+1. The commit is on `master`.
+2. The whole solution builds for `net6.0`, `net8.0` and `net10.0`, and the tests pass.
+3. `dotnet list package --vulnerable --include-transitive` finds nothing on `net10.0` for the released
+   package. Known vulnerabilities on `net6.0` and `net8.0` are reported as a warning and do not block.
+4. The package contains `lib/net6.0`, `lib/net8.0` and `lib/net10.0`.
+
+#### Order of releases
+
+A package that depends on another SOFTURE package references a version that is already on nuget.org,
+because the release restores the whole solution. Release the dependency first (SOFTURE/COMMON before this
+repository), wait until nuget.org lists it, then raise the reference and release the dependent package.
+
+#### Trusted publishing (one-time setup)
+
+The workflow publishes through [nuget.org trusted publishing](https://learn.microsoft.com/nuget/nuget-org/trusted-publishing):
+GitHub's OIDC token is exchanged for an API key that lives one hour. No long-lived API key is stored.
+
+1. nuget.org → your user → **Trusted Publishing** → add a policy: Package Owner `SOFTURE`, Repository
+   Owner `SOFTURE`, Repository `API`, Workflow File `release.yml`, Environment empty.
+2. The organization secret `NUGET_USER` holds the nuget.org **profile name** (not the e-mail) of the user
+   who created the policy.
+
+Keep the workflow file name: the policy is bound to `release.yml`. The old `NUGET_API_KEY` secret is no
+longer used.
 
 ## License
 
